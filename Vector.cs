@@ -94,7 +94,18 @@ namespace AABBcollisions
             return new vec2(x / len, y / len);
         }
 
+        // sets both axis to -1, 0, or 1
+        public vec2 normaliseaxis()
+        {
+            vec2 vec;
+
+            vec.x = (x == 0) ? 0 : Math.Sign(x);
+            vec.y = (y == 0) ? 0 : Math.Sign(y);
+
+            return vec;
+        }
         
+        // operator overloads
         public static vec2 operator +(vec2 a, vec2 b) => new vec2(a.x + b.x, a.y + b.y);//  v1 + v2 = [x1 + x2,  y1 + y2]
         public static vec2 operator -(vec2 a, vec2 b) => new vec2(a.x - b.x, a.y - b.y);//  v1 - v2 = [x1 - x2,  y1 - y2]
         public static vec2 operator *(vec2 a, vec2 b) => new vec2(a.x * b.x, a.y * b.y);//  v1 * v2 = [x1 * x2,  y1 * y2]
@@ -107,6 +118,7 @@ namespace AABBcollisions
         public static vec2 operator /(vec2 a, float b) => new vec2(a.x / b, a.y / b);   //  v1 / a  = [x1 / a,   y1 / a ]
         public static vec2 operator /(int b, vec2 a) => new vec2(b / a.x, b / a.y);     //  v1 * a  = [x1 * a,   y1 * a ]
         public static vec2 operator /(float b, vec2 a) => new vec2(b / a.x, b / a.y);   //  v1 * a  = [x1 * a,   y1 * a ]
+        public static vec2 operator -(vec2 a) => new vec2(-a.x, -a.y);                  //  - v     = [ - v.x,   - v.y  ]
 
         // tostring override so printing returns the values in the form "(x, y) "
         public override string ToString() => $"({x}, {y}) ";

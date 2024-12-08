@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SFML.Window;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -7,56 +8,29 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace AABBcollisions
 {
-    class Rigidbody
+    class Rigidbody : Collider
     {
-        private vec2 pos;
-        private vec2 vel;
-        private vec2 halfsize; // halfsize is used instead of size because it is the distance from the origin in all calculations
+        protected vec2 vel;
         private vec2 locked;   // locked is which axis the object can move on
 
-        // getters and setters
-        public vec2 position
+        public vec2 islocked
         {
-            get { return pos; }
-            set { pos = value; }
-        }
-        public float xpos
-        {
-            get { return pos.x; }
-            set { pos.x = value; }
-        }
-        public float ypos
-        {
-            get { return pos.y; }
-            set { pos.y = value; }
+            get { return locked; }
+            set { locked = value; }
         }
         public vec2 velocity
         {
             get { return vel; }
             set { vel = value; }
         }
-        public vec2 half_size
-        {
-            get { return halfsize; }
-        }
-        public vec2 size
-        {
-            get { return halfsize * 2; }
-        }
-        public vec2 islocked
-        {
-            get { return locked; }
-            set { locked = value; }
-        }
 
-        public Rigidbody(float x, float y, float xsize, float ysize, float xvel=0, float yvel=0, int xlocked=0, int ylocked=0)
+        public Rigidbody(float x, float y, float xsize, float ysize, float xvel=0, float yvel=0, int xlocked=0, int ylocked=0) : base(x, y, xsize, ysize)
         {
-            pos = new vec2(x, y);
             vel = new vec2(xvel, yvel);
-            halfsize = new vec2(xsize / 2, ysize / 2);
             locked = new vec2(xlocked, ylocked);
 
             if (locked.x != 0)
@@ -68,11 +42,9 @@ namespace AABBcollisions
                 vel.y = 0;
             }
         }
-        public Rigidbody(vec2 _pos, vec2 _size, vec2? _vel = null, vec2? _locked=null)
+        public Rigidbody(vec2 _pos, vec2 _size, vec2? _vel = null, vec2? _locked=null) : base(_pos, _size)
         {
-            pos = _pos;
             vel = _vel ?? new vec2();
-            halfsize = _size / 2;
             locked = _locked ?? new vec2();
 
             if (locked.x != 0)
@@ -82,6 +54,40 @@ namespace AABBcollisions
             if (locked.y != 0)
             {
                 vel.y = 0;
+            }
+        }
+
+        private int vectoedges(vec2 facing)
+        {
+            // vector (0, 1), (1, 0), (0, -1), (-1, 0)
+            // converted to int 1, 2, 3, 4
+
+            if (facing.x == 0 ^ facing.y == 0) // ^ = xor
+            {
+                int i = 0;
+                // find i here
+                if (facing.y > 0)
+                {
+                    i = 0;
+                }
+                else if (facing.x < 0)
+                {
+                    i = 1;
+                }
+                else if (facing.y < 0)
+                {
+                    i = 2;
+                }
+                else if (facing.x > 0)
+                {
+                    i = 3;
+                }
+
+                return i;
+            }
+            else
+            {
+                throw new ApplicationException("facing vector must be axis aligned");
             }
         }
 
@@ -96,28 +102,6 @@ namespace AABBcollisions
                 vec2 size = halfsize + other.half_size;  // target distance
 
                 if (Math.Abs(dif.x) < size.x)            // only return if they are actually overlapping
-                {
-                    overlap.x = size.x - Math.Abs(dif.x);
-                }
-                if (Math.Abs(dif.y) < size.y)
-                {
-                    overlap.y = size.y - Math.Abs(dif.y);
-                }
-            }
-            return overlap;
-        }
-
-        // the same as the other findoverlap except it can be used with values that arent tied to a specific object
-        public vec2 findoverlap(vec2 p1, vec2 p2, vec2 s1, vec2 s2)
-        {
-            vec2 overlap = new vec2(0, 0);
-
-            vec2 dif = p2 - p1;
-            if (!dif.iszero())
-            {
-                vec2 size = s1 + s2;
-
-                if (Math.Abs(dif.x) < size.x)
                 {
                     overlap.x = size.x - Math.Abs(dif.x);
                 }
@@ -148,7 +132,7 @@ namespace AABBcollisions
         // send object outside a plane
         public void resolveplanecollision(ref Plane plane)
         {
-            // only run plane calculations if the 
+            // only run plane calculations if the axis of the plane is not locked
             if (locked.x == 1 && plane.facing.x != 0)
             {
                 return;
@@ -157,115 +141,127 @@ namespace AABBcollisions
             {
                 return;
             }
-            vec2 overlap = planeoverlap(ref plane);
+
+            vec2 overlap = planeoverlap(ref plane); // finds the overlap between plane and 
 
             if (!overlap.iszero())
             {
-                if (!vel.iszero())
-                {
-                    vec2 scalefac = overlap / vel.abs();
-
-                    if (!scalefac.iszero() && scalefac.x < 1 && scalefac.y < 1)
-                    {
-                        vec2 norm = scalefac.normalise();
-                        vec2 swapped = new vec2(norm.y, norm.x);
-
-                        pos -= vel * scalefac;
-                        vel *= swapped;
-
-                        return;
-                    }
-                }
+                //move to the outside and set vel to 0
                 vec2 axis = plane.facing.abs();
                 vec2 swap = new vec2(axis.y, axis.x);
 
                 pos += overlap * plane.facing;
                 vel *= swap;
+
+                edges[vectoedges(plane.facing)] = true;
             }
         }
 
         // moves objects outside eachother, and sets velocity on the collision axis to 0
-        public void resolverectcollision(ref Rigidbody other)
+        public void resolverbcollision(ref Rigidbody other)
         {
+            // only resolve collisions if the next frame is also overlapping. this fixes a bug where a rigidbody gets stuck on a corner
             vec2 nextoverlap = findoverlap(pos + vel, other.position + other.velocity, halfsize, other.halfsize);
 
             if (nextoverlap.x != 0 && nextoverlap.y != 0) {
-                vec2 overlap = findoverlap(ref other);
+                vec2 overlap = findoverlap(ref other);  // how much the objects are overlapping on each axis
 
                 if (overlap.x != 0 && overlap.y != 0)
                 {
-                    if (!(vel - other.vel).iszero())
-                    {
-                        vec2 scalefac = overlap / (other.velocity - vel).abs();
+                    vec2 tomove1;
+                    vec2 tomove2;
 
-                        if (scalefac.x < 1 || scalefac.y < 1)
-                        {
-                            if (scalefac.x < scalefac.y)
-                            {
-                                scalefac.y = 0;
-                            }
-                            else
-                            {
-                                scalefac.x = 0;
-                            }
-                            vec2 norm = scalefac.normalise();
-                            vec2 swapped = new vec2(norm.y, norm.x);
+                    vec2 velmultiplier = new vec2();
 
-                            pos -= vel * scalefac;
-                            other.position -= other.velocity * scalefac;
-
-                            vel *= swapped;
-                            other.velocity *= swapped;
-
-                            return;
-                        }
-
-                    }
-                    vec2 tomove1 = new vec2();
-                    vec2 tomove2 = new vec2();
+                    // funny algorithm to find how much to move each object
+                    // considering that if an object is locked it cannot move and the other must move the full distance
+                    // this was written at 3 am if anything breaks imma blame this algorithm
                     tomove1 = (new vec2(1, 1) - locked) * overlap * (new vec2(0.5, 0.5) + 0.5f * other.islocked);
                     tomove2 = (new vec2(1, 1) - other.islocked) * overlap * (new vec2(0.5, 0.5) + 0.5f * locked);
 
+                    vec2 dir = (other.position - pos).normaliseaxis();
+
                     if (overlap.x < overlap.y)
                     {
-                        if (pos.x < other.position.x)
-                        {
-                            pos.x -= tomove1.x;
-                            other.xpos += tomove2.x;
-                        }
-                        else
-                        {
-                            pos.x += tomove1.x;
-                            other.xpos -= tomove2.x;
-                        }
-                        vel.x = 0;
-                        other.velocity *= new vec2(0, 1);
+                        dir.y = 0;
+                        velmultiplier.y = 1;
                     }
                     else
                     {
-                        if (pos.y < other.position.y)
-                        {
-                            pos.y -= tomove1.y;
-                            other.ypos += tomove2.y;
-                        }
-                        else
-                        {
-                            pos.y += tomove1.y;
-                            other.ypos -= tomove2.y;
-                        }
-                        vel.y = 0;
-                        other.velocity *= new vec2(1, 0);
+                        dir.x = 0;
+                        velmultiplier.x = 1;
+                    }
+
+                    tomove1 *= -dir;
+                    tomove2 *= dir;
+
+                    pos += tomove1;
+                    other.position += tomove2;
+
+                    vel *= velmultiplier;
+                    other.velocity *= velmultiplier;
+
+                    if (!tomove1.iszero())
+                    {
+                        edges[vectoedges(-dir)] = true;
+                        other.edges[vectoedges(dir)] = true;
                     }
                 }
             }
         }
 
+        public void resolverectcollision(ref Collider other)
+        {
+            // only resolve collisions if the next frame is also overlapping. this fixes a bug where a rigidbody gets stuck on a corner
+            vec2 nextoverlap = findoverlap(pos + vel, other.position, halfsize, other.half_size);
+
+            if (nextoverlap.x != 0 && nextoverlap.y != 0)
+            {
+                vec2 overlap = findoverlap(ref other);  // how much the objects are overlapping on each axis
+
+                if (overlap.x != 0 && overlap.y != 0)
+                {
+                    vec2 tomove;
+
+                    vec2 velmultiplier = new vec2();
+
+                    tomove = (new vec2(1, 1) - locked) * overlap;
+
+                    vec2 dir = (other.position - pos).normaliseaxis();
+
+                    if (overlap.x < overlap.y)
+                    {
+                        dir.y = 0;
+                        velmultiplier.y = 1;
+                    }
+                    else
+                    {
+                        dir.x = 0;
+                        velmultiplier.x = 1;
+                    }
+
+                    tomove *= -dir;
+
+                    pos += tomove;
+
+                    vel *= velmultiplier;
+
+                    if (!tomove.iszero())
+                    {
+                        edges[vectoedges(-dir)] = true;
+                    }
+                }
+            }
+        }
+
+        // add a value to velocity, accounting for locked axes
         public void accelerate(vec2 dir)
         {
             dir *= new vec2(1, 1) - locked;
             vel += dir;
         }
 
+        // move object by velocity, accounting for locked axes
         public void update()
         {
             vel *= new vec2(1, 1) - locked;

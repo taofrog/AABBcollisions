@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 using SFML;
 using SFML.Graphics;
@@ -9,11 +10,28 @@ namespace AABBcollisions
 {
     static class Program
     {
-        static void collisions(ref Rigidbody[] bodies, ref Plane[] planes)
+        static void drawcollider(Collider body, RenderWindow screen, Color colour)
         {
+            RectangleShape r = new RectangleShape(new Vector2f(body.size.x, body.size.y));
+            r.Origin = new Vector2f(body.half_size.x, body.half_size.y);
+            r.Position = new Vector2f(body.position.x, body.position.y);
+
+            r.FillColor = colour;
+            screen.Draw(r);
+        }
+        static void collisions(ref Rigidbody[] bodies, ref Collider[] colliders, ref Plane[] planes)
+        {
+            for (int i = 0; i < bodies.Length; i++)
+            {
+                bodies[i].edges = [false, false, false, false];
+            }
             for (int k = 0; k < planes.Length; k++)
             {
                 bodies[0].resolveplanecollision(ref planes[k]);
+            }
+            for (int k = 0; k < colliders.Length; k++)
+            {
+                bodies[0].resolverectcollision(ref colliders[k]);
             }
             for (int i = 0; i < bodies.Length - 1; i++)
             {
@@ -21,10 +39,13 @@ namespace AABBcollisions
                 {
                     bodies[i + 1].resolveplanecollision(ref planes[k]);
                 }
-
-                for(int j = i + 1; j < bodies.Length; j++)
+                for (int k = 0; k < colliders.Length; k++)
                 {
-                    bodies[i].resolverectcollision(ref bodies[j]);
+                    bodies[i + 1].resolverectcollision(ref colliders[k]);
+                }
+                for (int j = i + 1; j < bodies.Length; j++)
+                {
+                    bodies[i].resolverbcollision(ref bodies[j]);
                 }
             }
         }
@@ -52,11 +73,13 @@ namespace AABBcollisions
 
             app.SetVerticalSyncEnabled(true);
 
-            Rigidbody[] bodies = { new Rigidbody(new vec2(-10, 130), new vec2(50, 50), _vel:new vec2(0, 0), _locked:new vec2(0, 1)),
-                                   new Rigidbody(new vec2(425, 400), new vec2(50, 75), _locked:new vec2(1, 1)),
-                                   new Rigidbody(new vec2(400, 450), new vec2(50, 75), _locked:new vec2(1, 1)),
-                                   new Rigidbody(new vec2(375, 500), new vec2(50, 75), _locked:new vec2(1, 1))
+            Rigidbody[] bodies = { new Rigidbody(new vec2(-10, 130), new vec2(50, 50)),
+                                   new Rigidbody(new vec2(700, 230), new vec2(50, 50))
                                  };
+
+            Collider[] rects = {new Rigidbody(new vec2(425, 400), new vec2(50, 75)),
+                                new Rigidbody(new vec2(400, 450), new vec2(50, 75)),
+                                new Rigidbody(new vec2(375, 500), new vec2(50, 75))};
 
             Plane[] walls = { new Plane(new vec2(1, 0), 10), new Plane(new vec2(-1, 0), 800),
                               new Plane(new vec2(0, 1), 40), new Plane(new vec2(0, -1), 700)};
@@ -87,27 +110,63 @@ namespace AABBcollisions
                 foreach (Rigidbody body in bodies)
                 {
                     body.update();
-                    if (body.islocked.iszero())
-                    {
-                        Console.WriteLine(body.velocity);
-                    }
                 }
-                collisions(ref bodies, ref walls);
+                collisions(ref bodies, ref rects, ref walls);
 
                 // Clear screen
                 app.Clear(windowColor);
 
                 //draw things here
-                for (int i = 0; i < bodies.Length; i++)
+                foreach (Rigidbody body in bodies)
                 {
-                    RectangleShape r = new RectangleShape(new Vector2f(bodies[i].size.x, bodies[i].size.y));
-                    r.Origin = new Vector2f(bodies[i].half_size.x, bodies[i].half_size.y);
-                    r.Position = new Vector2f(bodies[i].position.x, bodies[i].position.y);
+                    drawcollider(body, app, new Color(255, 255, 255));
+                }
 
-                    Color colour = new Color(255, 255, 255);
-                 
-                    r.FillColor = colour;
-                    app.Draw(r);
+                foreach (Rigidbody body in rects)
+                {
+                    drawcollider(body, app, new Color(50, 50, 150));
+                }
+
+                foreach (Rigidbody body in bodies)
+                {
+                    Console.WriteLine(body.edges[1]);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        bool b = body.edges[i];
+                        if (b)
+                        {
+                            RectangleShape r = new RectangleShape(new Vector2f(body.size.x, body.size.y));
+                            r.Origin = new Vector2f(body.half_size.x, body.half_size.y);
+                            r.Position = new Vector2f(body.position.x, body.position.y);
+
+                            Color colour = new Color(255, 0, 0);
+
+                            r.FillColor = colour;
+
+                            if (i == 0)
+                            {
+                                r.Size = new Vector2f(r.Size.X, 2);
+                                r.Position = new Vector2f(r.Position.X, r.Position.Y);
+                            }
+                            else if (i == 1)
+                            {
+                                r.Size = new Vector2f(2, r.Size.Y);
+                                r.Position = new Vector2f(r.Position.X + body.size.x, r.Position.Y);
+                            }
+                            else if (i == 2)
+                            {
+                                r.Size = new Vector2f(r.Size.X, 2);
+                                r.Position = new Vector2f(r.Position.X, r.Position.Y + body.size.y);
+                            }
+                            else if (i == 3)
+                            {
+                                r.Size = new Vector2f(2, r.Size.Y);
+                                r.Position = new Vector2f(r.Position.X, r.Position.Y);
+                            }
+
+                            app.Draw(r);
+                        }
+                    }
                 }
 
                 // Update the window
