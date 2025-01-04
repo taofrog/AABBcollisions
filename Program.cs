@@ -1,4 +1,10 @@
-﻿using System;
+// ------------------------------------------------------
+//
+// HAS NOT BEEN UPDATED MAY NOT WORK AS INTENED OR AT ALL
+//
+// ------------------------------------------------------
+
+using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 using SFML;
