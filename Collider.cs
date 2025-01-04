@@ -52,7 +52,7 @@ namespace AABBcollisions
         }
 
         // can be used with values that arent tied to a specific object
-        public vec2 findoverlap(vec2 p1, vec2 p2, vec2 s1, vec2 s2)
+        public static vec2 findoverlap(vec2 p1, vec2 p2, vec2 s1, vec2 s2)
         {
             vec2 overlap = new vec2(0, 0);
 
@@ -91,6 +91,67 @@ namespace AABBcollisions
                 }
             }
             return overlap;
+        }
+
+        protected int vectoedges(vec2 facing)
+        {
+            // vector (0, 1), (1, 0), (0, -1), (-1, 0)
+            // converted to int 0, 1, 2, 3
+
+            if (facing.x == 0 ^ facing.y == 0) // ^ = xor
+            {
+                int i = 0;
+                // find i here
+                if (facing.y > 0)
+                {
+                    i = 0;
+                }
+                else if (facing.x < 0)
+                {
+                    i = 1;
+                }
+                else if (facing.y < 0)
+                {
+                    i = 2;
+                }
+                else if (facing.x > 0)
+                {
+                    i = 3;
+                }
+
+                return i;
+            }
+            else
+            {
+                throw new ApplicationException("facing vector must be axis aligned");
+            }
+        }
+
+        protected vec2 edgetovec(int edge)
+        {
+            // vector (0, 1), (1, 0), (0, -1), (-1, 0)
+            // converted to int 0, 1, 2, 3
+
+            vec2 v = new vec2();
+
+            if (edge == 0)
+            {
+                v = new vec2(0, 1);
+            }
+            else if (edge == 1)
+            {
+                v = new vec2(1, 0);
+            }
+            else if (edge == 2)
+            {
+                v = new vec2(0, -1);
+            }
+            else if (edge == 3)
+            {
+                v = new vec2(-1, 0);
+            }
+
+            return v;
         }
     }
 }

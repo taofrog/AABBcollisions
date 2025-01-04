@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AABBcollisions
+namespace Vector2
 {
     struct vec2
     {
@@ -34,6 +34,21 @@ namespace AABBcollisions
             x = (float)_x;
             y = (float)_y;
         }
+        public vec2(float i)
+        {
+            x = i;
+            y = i;
+        }
+        public vec2(double i)
+        {
+            x = (float)i;
+            y = (float)i;
+        }
+        public vec2(int i)
+        {
+            x = (float)i;
+            y = (float)i;
+        }
 
         // squared length of the vector - much faster to compute than actual length
         public float lengthsqr()
@@ -50,7 +65,7 @@ namespace AABBcollisions
         // returns true if the total length of the vector is zero
         public bool iszero()
         {
-            if (x == 0 && y == 0)
+            if (Math.Abs(x) < 0.000001 && Math.Abs(y) < 0.000001)
             {
                 return true;
             }
@@ -60,13 +75,13 @@ namespace AABBcollisions
         // returns the vector rotated by an angle, in radians
         public vec2 rotate(float angle)
         {
-            return new vec2(Math.Cos(angle) * x - Math.Sin(angle) * y,  // x2 = x1 cos(0) - y1 sin(0)
-                            Math.Sin(angle) * x + Math.Cos(angle) * y); // y2 = x1 sin(0) + y1 cos(0)
+            return new vec2(Math.Cos(-angle) * x - Math.Sin(-angle) * y,  // x2 = x1 cos(0) - y1 sin(0)
+                            Math.Sin(-angle) * x + Math.Cos(-angle) * y); // y2 = x1 sin(0) + y1 cos(0)
         }
         public vec2 rotate(double angle)
         {
-            return new vec2(Math.Cos(angle) * x - Math.Sin(angle) * y,
-                            Math.Sin(angle) * x + Math.Cos(angle) * y);
+            return new vec2(Math.Cos(-angle) * x - Math.Sin(-angle) * y,
+                            Math.Sin(-angle) * x + Math.Cos(-angle) * y);
         }
 
         // returns the vector rotated by an angle, in degrees
@@ -79,6 +94,13 @@ namespace AABBcollisions
         {
             angle = angle * 180 / Math.PI;
             return rotate(angle);
+        }
+
+        // angle of vector (0 is directly right, going counterclockwise)
+        public float angle()
+        {
+            // return 0 if the vector is 0
+            return iszero() ? 0 : (float)Math.Atan2(y, x);
         }
 
         // returns the vector with only positive values
@@ -119,6 +141,10 @@ namespace AABBcollisions
         public static vec2 operator /(int b, vec2 a) => new vec2(b / a.x, b / a.y);     //  v1 * a  = [x1 * a,   y1 * a ]
         public static vec2 operator /(float b, vec2 a) => new vec2(b / a.x, b / a.y);   //  v1 * a  = [x1 * a,   y1 * a ]
         public static vec2 operator -(vec2 a) => new vec2(-a.x, -a.y);                  //  - v     = [ - v.x,   - v.y  ]
+        public static bool operator >(vec2 a, vec2 b) => a.lengthsqr() > b.lengthsqr();
+        public static bool operator >=(vec2 a, vec2 b) => a.lengthsqr() >= b.lengthsqr();
+        public static bool operator <(vec2 a, vec2 b) => a.lengthsqr() < b.lengthsqr();
+        public static bool operator <=(vec2 a, vec2 b) => a.lengthsqr() <= b.lengthsqr();
 
         // tostring override so printing returns the values in the form "(x, y) "
         public override string ToString() => $"({x}, {y}) ";
